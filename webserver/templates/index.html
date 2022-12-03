@@ -1,0 +1,245 @@
+<!doctype html>
+<title>Fanuc server</title>
+<link rel="stylesheet" href="styles/style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script> -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/3.0.4/socket.io.js" integrity="sha512-aMGMvNYu8Ue4G+fHa359jcPb1u+ytAF+P2SCb+PxrjCdO3n3ZTxJ30zuH39rimUggmTwmh2u7wvQsDTHESnmfQ==" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<body>
+    <div id="main">
+        <div id="info">
+            <h2 id="status">Статус:</h2> <label id="status-value">отключен</label>
+            <h2>Координаты</h2>
+            <div id="coords">
+                <div id="world-coords">
+                    <label>мировые</label><br>
+                    <div id="world-values">
+                        <label id="x">x: 000.0000</label>
+                        <label id="y">y: 000.0000</label>
+                        <label id="z">z: 000.0000</label><br>
+                        <label id="w">w: 000.0000</label>
+                        <label id="p">p: 000.0000</label>
+                        <label id="r">r: 000.0000</label>
+                    </div>
+                </div>
+                <div id="joint-coords">
+                    <label>соединений</label>
+                    <div id="joint-values">
+                        <label id="j1">j1: 000.0000</label>
+                        <label id="j2">j2: 000.0000</label>
+                        <label id="j3">j3: 000.0000</label><br>
+                        <label id="j4">j4: 000.0000</label>
+                        <label id="j5">j5: 000.0000</label>
+                        <label id="j6">j6: 000.0000</label>
+                    </div>
+                </div>
+            </div>
+            <h2>Отправить координаты</h2>
+            <div id="send-coords">
+                <div id="world-input">
+                    <div id="world-input-values">
+                        <label>x:</label>
+                        <input id="x-input">
+                        <label>y:</label>
+                        <input id="y-input">
+                        <label>z:</label>
+                        <input id="z-input"><br>
+                        <label>w:</label>
+                        <input id="w-input">
+                        <label>p:</label>
+                        <input id="p-input">
+                        <label>r:</label>
+                        <input id="r-input">
+                    </div>
+                    <button class="standard-button" id="send-world" onclick="sendCart()">Отправить</button>
+                </div>
+                <div id="joint-input">
+                    <div id="joint-input-values">
+                        <label>j1:</label>
+                        <input id="j1-input">
+                        <label>j2:</label>
+                        <input id="j2-input">
+                        <label>j3:</label>
+                        <input id="j3-input"><br>
+                        <label>j4:</label>
+                        <input id="j4-input">
+                        <label>j5:</label>
+                        <input id="j5-input">
+                        <label>j6:</label>
+                        <input id="j6-input">
+                    </div>
+                    <button class="standard-button" id="send-joint" onclick="sendJoints()">Отправить</button>
+                </div>
+            </div>
+        </div>
+        <div id="statistics">
+            <h2>Погрешность прямой задачи</h2>
+            <canvas id="forwardErrorCart"></canvas>
+            <canvas id="forwardErrorAngles"></canvas>
+        </div>
+    </div>
+</body>
+
+<script type="text/javascript" charset="utf-8">
+    const ctx = document.getElementById('forwardErrorCart');
+    const ctx1 = document.getElementById('forwardErrorAngles');
+    var forwardErrorChartCart = new Chart(ctx, {
+        type: 'line',
+        data: {
+        labels: [],
+        datasets: [{
+            label: 'L1 норма для декартовых координат' ,
+            data: [],
+            borderWidth: 1,
+            cubicInterpolationMode: 'monotone',
+            pointRadius: 1
+        }]
+        },
+        options: {
+        scales: {
+            y: {
+                beginAtZero: true,
+                max: 0.001,
+                title: {
+                    display: true,
+                    text: 'мм'
+                }
+            },
+            x: {
+                display: false
+            }
+        }
+        }
+    });
+    var forwardErrorChartAngles = new Chart(ctx1, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'L1 норма для ориентации',
+                data:[],
+                borderWidth: 1,
+                cubicInterpolationMode: 'monotone',
+                pointRadius: 1
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 0.0001,
+                    title: {
+                        display: true,
+                        text: 'градусы'
+                    }
+                },
+                x: {
+                    display: false
+                }
+            }
+        }
+    })
+    var socket = io();
+    var i = 0;
+    var isConnected = true;
+
+    function sendCart()
+    {
+        socket.emit('sendcoords', JSON.stringify({
+            'world':[
+                document.getElementById('x-input').value,
+                document.getElementById('y-input').value,
+                document.getElementById('z-input').value,
+                document.getElementById('w-input').value,
+                document.getElementById('p-input').value,
+                document.getElementById('r-input').value,
+            ]
+        }))
+    }
+
+    function sendJoints()
+    {
+        socket.emit('sendcoords', JSON.stringify({
+            'joints':[
+                document.getElementById('j1-input').value,
+                document.getElementById('j2-input').value,
+                document.getElementById('j3-input').value,
+                document.getElementById('j4-input').value,
+                document.getElementById('j5-input').value,
+                document.getElementById('j6-input').value,
+            ]
+        }))
+    }
+
+    socket.on('status', (data) => {
+        jsonStatus = JSON.parse(data);
+        if (jsonStatus['status'] != window.isConnected)
+        {
+            window.isConnected = jsonStatus['status'];
+            var item = document.getElementById('status-value');
+            if (window.isConnected){
+                item.innerHTML = 'подключен'
+                item.style.color = 'green';
+            }
+            else {
+                item.innerHTML = 'отключен';
+                item.style.color = 'red';
+            }
+        }
+    });
+
+    var lastPacket = null
+
+    socket.on('getcoords', (data) => {
+        if (lastPacket == null)
+            lastPacket = data
+        if (lastPacket == data)
+            return;
+        jsonCoords = JSON.parse(data)
+        console.log(jsonCoords)
+        let coordName = ['x', 'y', 'z', 'w', 'p', 'r'];
+        for (var i = 0; i < 6; ++i)
+        {
+            var item = document.getElementById(coordName[i])
+            item.innerHTML = coordName[i] + ': ' + jsonCoords['cart'][i].toFixed(4)
+        }
+
+        for (var i = 0; i < 6; ++i)
+        {
+            var item = document.getElementById(`j${i+1}`)
+            item.innerHTML = `j${i+1}:` + jsonCoords['joints'][i].toFixed(4)
+        }
+
+        if (forwardErrorChartCart.data.datasets[0].data.length > 50)
+        {
+            forwardErrorChartCart.data.datasets[0].data.shift()
+            forwardErrorChartCart.data.datasets[0].data.push(jsonCoords['error_cart'])
+        }
+        else {
+            forwardErrorChartCart.data.datasets[0].data.push(jsonCoords['error_cart'])
+            forwardErrorChartCart.data.labels.push(window.i)
+        }
+
+        if (forwardErrorChartAngles.data.datasets[0].data.length > 50)
+        {
+            forwardErrorChartAngles.data.datasets[0].data.shift()
+            forwardErrorChartAngles.data.datasets[0].data.push(jsonCoords['error_ang'])
+        }
+        else {
+            forwardErrorChartAngles.data.datasets[0].data.push(jsonCoords['error_ang'])
+            forwardErrorChartAngles.data.labels.push(window.i)
+        }
+        
+        forwardErrorChartCart.update()
+        forwardErrorChartAngles.update()
+        window.i += 1;
+        lastPacket = data;
+    });
+
+    setInterval(() => socket.emit('getcoords', ''), 100);
+
+</script>

@@ -1,0 +1,131 @@
+body{
+    width: 100%; 
+    height: 100%; 
+    /* position: fixed;  */
+    top: 0; 
+    left: 0; 
+    z-index: 9999;
+    font-family: 'Roboto', sans-serif;
+}
+
+h2{
+    font-family: 'Roboto', sans-serif;
+    font-size: 22px;
+}
+
+label{
+    font-family: 'Roboto', sans-serif;
+    font-size: 20px;
+}
+
+#world-values label,  #joint-values label,
+#world-input label, #joint-input label {
+    font-size: 16px;
+    margin-right: 4%;
+}
+
+/* #joint-values label{
+    font-family: 'Roboto', sans-serif;
+    font-size: 16px;
+    margin-right: 4%;
+} */
+
+#main{
+    width: 80%;
+    height: 100%;
+    margin: auto;
+}
+
+#status{
+    display: inline;
+}
+
+#info{
+    width: 60%;
+    height: 100%;
+    padding-top: 30px;
+    float: left;
+}
+
+#statistics{
+    width: 40%;
+    height: 100%;
+    float: left;
+    padding-top: 15px;
+}
+
+#coords{
+    width: 100%;
+    /* margin: auto; */
+    margin-bottom: 130px;
+}
+
+#world-coords{
+    width: 44.9%;
+    float: left;
+    padding-left: 5%;
+    /* background-color: aqua; */
+}
+
+#joint-coords{
+    width: 44.9%;
+    float: left;
+    padding-left: 5%;
+    border-left: 1px solid #B6B6B6;
+    /* background-color: brown; */
+}
+
+#world-values {
+    margin-top: 3%;
+}
+
+#joint-values{
+    margin-top: 3%;
+}
+
+#world-input{
+    width: 44.9%;
+    float: left;
+    padding-left: 5%;
+}
+
+#joint-input{
+    width: 44.9%;
+    float: left;
+    padding-left: 5%;
+}
+
+#send-coords{
+    width: 100%;
+    margin: auto;
+}
+
+#send-coords label{
+    margin-right: 2px;
+}
+
+#send-coords input{
+    width: 60px;
+    margin-right: 10px;
+    margin-top: 10px;
+}
+
+#joint-input{
+    border-left: 1px solid #B6B6B6;
+}
+
+.standard-button{
+    border-radius: 5px;
+    border: 1px solid #B6B6B6;
+    background-color: transparent;
+    width: 150px;
+    height: 40px;
+    margin-top: 20px;
+    font-size: 16px;
+    font-family: 'Roboto', sans-serif;
+}
+
+.standard-button:hover{
+    border: 1px solid #B6B6B6;
+    background-color: #B6B6B6;
+}

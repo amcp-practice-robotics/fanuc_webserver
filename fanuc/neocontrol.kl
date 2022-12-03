@@ -1,0 +1,167 @@
+PROGRAM NEOCONTROL
+
+%STACKSIZE = 13000 
+%NOPAUSE=ERROR + COMMAND + TPENABLE
+
+%ENVIRONMENT sysdef 
+%ENVIRONMENT flbt   
+%ENVIRONMENT STRNG
+%ENVIRONMENT MOTN
+
+VAR
+	STATUS: INTEGER -- status variable
+	file_var: FILE -- read/write file variable
+	word: STRING[5]
+	resp: STRING[254]
+	j_str: STRING[254]
+	tmp: STRING[254]
+	joints: ARRAY[6] OF INTEGER
+	j_real: ARRAY[6] OF REAL
+	x: INTEGER
+	y: INTEGER
+	z: INTEGER
+	w: INTEGER
+	p: INTEGER
+	r: INTEGER
+	iter: INTEGER
+	speed: INTEGER
+	world_point: XYZWPR
+	cur_pos: XYZWPR
+	joint_points: JOINTPOS
+CONST
+	SERV_PORT = 10000
+	END_MSG = 'end'
+	START_MSG = 'start'
+	NOT_REACH = 'not_reach'
+	RAD_TO_DEG = 57.29577951
+
+--calibration
+ROUTINE reset_tool_ 
+VAR
+	crtpos_: XYZWPREXT 
+	zero_frm_: POSITION
+BEGIN
+	crtpos_.x = 0
+	crtpos_.y = 0
+	crtpos_.z = 0
+	crtpos_.w = 0
+	crtpos_.p = 0
+	crtpos_.r = 0
+	zero_frm_= crtpos_  
+	$UTOOL = zero_frm_ 
+END reset_tool_
+
+--setting current position as default
+ROUTINE set_def_sets 
+VAR
+	point_rt_w : XYZWPR
+BEGIN
+	reset_tool_ 
+	point_rt_w = CURPOS(0,0) 
+	joint_points = CURJPOS(0, 0)
+	$MCR.$GENOVERRIDE = 100  
+	$DMAURST = TRUE 
+	$SPEED = 100  
+	$TERMTYPE = NODECEL 
+	$JCR_GRP[1].$JOG_COORD = 2 
+	$MOTYPE = JOINT 
+END set_def_sets
+
+--connect with tcp/ip to client
+ROUTINE connect_sock 
+VAR 
+	entry : INTEGER
+BEGIN
+	SET_VAR(entry, '*SYSTEM*', '$HOSTS_CFG[3].$SERVER_PORT', SERV_PORT, STATUS) 
+	MSG_DISCO('S3:', STATUS) 
+	MSG_CONNECT('S3:', STATUS) 
+END connect_sock
+
+
+--main cycle
+BEGIN
+	set_def_sets
+	WHILE TRUE DO
+		connect_sock -- try to connect
+		IF (STATUS = 0) THEN  -- if connection succsesful -> open file_var
+			OPEN FILE file_var ('RW', 'S3:') 
+			STATUS = IO_STATUS(file_var)  
+		ENDIF 
+		
+		IF (STATUS = 0) THEN
+			FOR iter = 1 to 6 DO
+				READ file_var (joints[iter])
+			ENDFOR
+			READ file_var (speed)
+					
+			FOR iter = 1 to 6 DO
+				j_real[iter] = joints[iter]
+				j_real[iter] = j_real[iter] / 1000
+			ENDFOR
+					
+			CNV_REL_JPOS(j_real, joint_points, STATUS)
+					
+			CHECK_EPOS((joint_points), $UFRAME, $UTOOL, STATUS)
+			
+			IF ((STATUS > 0) OR (STATUS < 0)) THEN
+				WRITE file_var(NOT_REACH, CR)
+			ENDIF
+					
+			IF ((STATUS = 0) AND (speed > 0)  AND (speed < 2000))THEN
+				$SPEED = speed 
+				MOVE TO joint_points NOWAIT
+				DELAY (1000)	
+				WRITE file_var(START_MSG, CR)	
+				WHILE $MOR_GRP[1].$ROB_MOVE DO 
+					cur_pos = CURPOS(0,0)
+					FOR iter = 1 to 6 DO
+						j_real[iter] = $MOR_GRP[1].$CURRENT_ANG[iter] * RAD_TO_DEG
+					ENDFOR
+							
+					resp = '{"joints": ['
+					CNV_REAL_STR(j_real[1], 8, 16, tmp)
+					resp = resp + tmp + ','
+					CNV_REAL_STR(j_real[2], 8, 16, tmp)
+					resp = resp + tmp + ','
+					CNV_REAL_STR(j_real[3], 8, 16, tmp)
+					resp = resp + tmp
+					WRITE file_var(resp)
+							
+					resp = ','
+					CNV_REAL_STR(j_real[4], 8, 16, tmp)
+					resp = resp + tmp + ','
+					CNV_REAL_STR(j_real[5], 8, 16, tmp)
+					resp = resp + tmp + ','
+					CNV_REAL_STR(j_real[6], 8, 16, tmp)
+					resp = resp + tmp + '],'
+					WRITE file_var(resp)
+							
+					resp = '"cart": ['
+					CNV_REAL_STR(cur_pos.x, 8, 16, tmp)
+					resp = resp + tmp + ','
+					CNV_REAL_STR(cur_pos.y, 8, 16, tmp)
+					resp = resp + tmp + ','
+					CNV_REAL_STR(cur_pos.z, 8, 16, tmp)
+					resp = resp + tmp
+					WRITE file_var(resp)
+							
+					resp = ','
+					CNV_REAL_STR(cur_pos.w, 8, 16, tmp)
+					resp = resp + tmp + ','
+					CNV_REAL_STR(cur_pos.p, 8, 16, tmp)
+					resp = resp + tmp + ','
+					CNV_REAL_STR(cur_pos.r, 8, 16, tmp)
+					resp = resp + tmp + ']}'
+					WRITE file_var(resp, CR)
+					DELAY(30)
+				ENDWHILE		
+				WRITE file_var(END_MSG, CR)				
+			ENDIF	
+		ENDIF
+		
+		CANCEL FILE  file_var 
+		CLOSE FILE file_var 
+		MSG_DISCO('S3:',STATUS) 
+		
+	ENDWHILE
+END NEOCONTROL

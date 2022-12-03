@@ -1,0 +1,45 @@
+\documentclass{article}
+
+\usepackage{cmap}  % should be before fontenc
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{verbatim}
+\usepackage[pdftex,colorlinks=true,linkcolor=blue,urlcolor=red,unicode=true,hyperfootnotes=false,bookmarksnumbered]{hyperref}
+\usepackage{indentfirst}
+
+\begin{document}
+
+\section{Обратная задача}
+
+Решение будет опираться, прежде всего, на то, что оси для 4-6 джоинтов пересекаются в одной точке. Для таких цепей решение для первых трех углов есть в общем виде (через корни полиномов $\leq4$ степени) в \href{https://web.archive.org/web/20160924184009/http://www.dtic.mil/get-tr-doc/pdf?AD=AD0680036}{работе D. Pieper}.
+
+Первый шаг решения - определение точки пересечения осей. Сначала, определяется матрица $\text{Aeq}$, описывающая систему координат TCP (даны XYZWPR, $c_w=\cos W, s_w=\dots$):
+
+$$Aeq = \begin{bmatrix}
+c_r c_p & c_r s_p s_w - s_r c_w & c_r s_p c_w + s_r s_w & X\\
+s_r c_p & s_r s_p s_w + c_r c_w & s_r s_p c_w - c_r s_w & Y\\
+-s_p & c_p s_w & c_p c_w & Z\\
+0 & 0 & 0 & 1
+\end{bmatrix}$$
+
+$\hat{p} = (0, 0, d_6, 1).T$ - координаты точки пересечения в системе координат TCP $\Rightarrow \text{Aeq}\cdot\hat{p}=p$ - координаты этой же точки в мировой СК
+
+Из-за удобного расположения осей в Fanuc-е задача очень сильно упрощается:
+
+1) благодаря тому, что у j2 и j3, во-перых, оси совпадают с $O\!y$ у j1, и, во-вторых, смещение вдоль z отсутствует, углы джоинтов 1-3 можно вычислить геометрически:
+
+$\theta_1 \in \{\arctan\!2(p_y, p_x), \arctan\!2(p_y, p_x)+\pi\}$
+
+Знание $\theta_1$ переводит поиск $\theta_2, \theta_3$ в простую плоскую задачу. Будет два решения (решения образуют параллелограм - разные углы, но координаты конечной точки те же) $ $\newline
+
+2) из $theta_1, theta_2, theta_3$ получается матрица перехода после первых 3 джоинтов $T = A_1A_2A_3$. Матрица поворота, соотв $T$ - $R_1$, матрица поворота для $Aeq$ - $R_f$, тогда матрица поворота $R = R_1^TR_f$. у Fanuc-а джоинты 4-6 есть по сути углы эйлера - вокруг Z, вокруг -Y, вокруг Z, а затем вокруг X на $\pi$.
+
+Тогда $\theta_4, -\theta_5, \theta_6$ - углы ZYZ для матрицы поворота $R\cdot\text{diag}\{1,-1,-1\}$ (формулы углов, например, \href{https://en.wikipedia.org/wiki/Euler_angles#Rotation_matrix}{отсюда}; $\theta_4, \theta_5, \theta_6 = \alpha, \beta, \gamma$)
+
+$\arccos$ дает 2 значения $\theta_5$ противоположных знаков
+
+Всего получается 8 решений (три неоднозначности, по 2 варианта каждая)
+
+\end{document}

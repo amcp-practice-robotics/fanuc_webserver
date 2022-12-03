@@ -1,0 +1,53 @@
+\documentclass{article}
+
+\usepackage{cmap}  % should be before fontenc
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{verbatim}
+\usepackage[pdftex,colorlinks=true,linkcolor=blue,urlcolor=red,unicode=true,hyperfootnotes=false,bookmarksnumbered]{hyperref}
+\usepackage{indentfirst}
+
+\begin{document}
+
+\section{Прямая задача}
+
+Конфигурация описывается набором параметров переходов от $i$-й СК к $i+1$-й ($i$ от 1 до количества джоинтов):
+- $d_i$ - смещение вдоль $z_i$
+- $\theta_i$ - поворот вокруг $z_i$, после которого $x_i$ стало бы параллельной $x_{i+1}$
+- $\alpha_i$ - поворот вокруг $x_{i+1}$, после которого $z_i$ стало бы параллельной $z_{i+1}$
+- $a_i$ - смещение вдоль $x_{i+1}$
+
+Поворотные joint-ы тоже вращаются вокруг оси $z_i$, потому между $\theta_i$ у углами поворотов joint-ов ($j_i$) есть связь. Например в fanuc-е: 
+- $j_1, j_4, j_5, j_6$ переходят в $\theta_1, \theta_4,\theta_5,\theta_6$ без изменений
+- у $j_2$ направление вращение противоположно $z_2$, а также начальный угол смещен на $\frac{\pi}{2}\Rightarrow \theta_2=-j + \frac{\pi}{2}$
+- $j_3$ показывает угол наклона относительно земли, что достигается связью $j_3$ с $j_2\Rightarrow \theta_3=j_3+j_2$
+
+Однородная матрица перехода - произведение 4 однородных матриц: $$A_i = R_{z, \theta_i}\text{Trans}_{z, d_i}\text{Trans}_{z, a_i}R_{x,\alpha_i}=\begin{bmatrix}
+c_{\theta_i} & -s_{\theta_i} c_{\alpha_i} & s_{\theta_i}s_{\alpha_i} & a_ic_{\theta_i}\\
+s_{\theta_i} & c_{\theta_i} c_{\alpha_i} & -c_{\theta_i}s_{\alpha_i} & a_is_{\theta_i}\\
+0 & s_{\alpha_i} & c_{\alpha_i} & d_i \\
+0 & 0 & 0 & 1
+\end{bmatrix}$$
+$s_{\theta}=\sin(\theta), c_{\theta}=\cos(\theta)$, то же с $\alpha$ (подробнее - \href{https://uynitsuj.github.io/articles/2020-03/forward-kinematics-denavit-hartenberg-convention-on-a-6r-robotic-arm-example}{здесь})
+
+Матрица, описывающая положение TCP: $H = A_1\cdots A_n$ - тоже однородная, т.е. имеет вид:
+$$
+\begin{bmatrix}
+\text{\Large$R$}&\begin{matrix} x \\ y \\ z \end{matrix}\\
+\begin{matrix} 0 & 0 & 0 \end{matrix} & 1
+\end{bmatrix}
+$$
+
+$R$ - матрица поворота, $x, y, z$ - вектор смещения. Из $R$ вытаскиваются фиксированные углы $w, p, r$ (yaW, Pitch, Roll; \href{https://youtu.be/Ft7L5EsF_Kw?t=479}{видео про WPR в Fanuc}) по формулам:
+
+$p=arctan2(-r_{31}, \sqrt{r_{11}^2+r_{21}^2})$
+
+$w=arctan2(r_{32}/\cos(p), r_{33}/\cos(p)$
+
+$r=arctan2(r_{21}/\cos(p), r_{11}/\cos(p)$
+
+(\href{https://i.imgur.com/Bf728xV.png}{чуть подробнее о формулах})
+
+\end{document}
